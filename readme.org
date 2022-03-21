@@ -1,0 +1,18 @@
+#+OPTIONS: toc:nil
+
+#+begin_export html
+<h1 align="center">Φαταλισμός</h1>
+#+end_export
+
+railway oriented programming for =clojure= & =clojurescript=
+
+* motivation
+
+=fatum= was basically a friendly copy of [[https://github.com/fmnoise/flow][fmnoise/flow]] with a pinch of [[https://github.com/adambard/failjure][failjure]],
+but it went in a slightly different direction to suit my personal needs.
+unfortunately or fortunately i don't agree with most of the small decisions made
+by [[https://github.com/fmnoise][alex]] that don't affect the overall applicability of library, but strongly
+affect my personal user experience, starting from the use of =->>= instead of =->=,
+to naming the catching function =else= instead of =catch= as it is in =javascript= for
+example. [[https://github.com/fmnoise/flow][flow]] is a excellent piece of code and i have enjoyed using it for a
+long time.
