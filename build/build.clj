@@ -65,13 +65,13 @@
                 :lib       lib
                 :version   version
                 :basis     basis
-                :src-dirs  ["src"]
+                :src-dirs  ["src/main"]
                 :scm {:tag (sha nil)
                       :connection (str "scm:git:" scm-url)
                       :developerConnection (str "scm:git:" scm-url)
                       :url scm-url}})
   (javac _)
-  (b/copy-dir {:src-dirs   ["src"]
+  (b/copy-dir {:src-dirs   ["src/main"]
                :target-dir class-dir})
   (b/jar {:class-dir class-dir
           :jar-file  jar-file}))
