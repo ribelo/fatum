@@ -12,7 +12,7 @@
 (defn javac [_]
   (println "Compiling Java")
   
-  (javac/javac "src" {:compile-path     "target/classes"
+  (javac/javac "src/main" {:compile-path     "target/classes"
                       ;; Additional options used by the javac command
                       :compiler-options ["-cp" "clojure-1.10.3.jar:src:target/classes" "-target" "1.8"
                                          "-source" "1.8" "-Xlint:-options"]})
