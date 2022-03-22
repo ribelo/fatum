@@ -45,13 +45,17 @@
   "returns [[Fail]]"
   ([] (Fail. nil {}))
   ([msg] (Fail. msg {}))
-  ([msg data] (Fail. msg data)))
+  ([msg data]
+   (Fail. msg (cond (map? data) data (nil? data) {} (sequential? data) (apply array-map data))))
+  ([msg k v & kvs]
+   (Fail. msg (apply array-map k v kvs))))
 
 (defn fail!
   "throw [[Fail]]"
-  ([] (throw (Fail. nil {})))
-  ([msg] (throw (Fail. msg {})))
-  ([msg data] (throw (Fail. msg data))))
+  ([] (throw (fail)))
+  ([msg] (throw (fail msg)))
+  ([msg data] (throw (fail msg data)))
+  ([msg k v & kvs] (throw (apply fail msg k v kvs))))
 
 (defn fail?
   "check if `x` is instance of Exception or js/Error in cljs"
@@ -65,7 +69,7 @@
   "ensure that `Exception` `err` is [[Fail]]"
   [x]
   (if (and (fail? x) #?(:clj (instance? java.lang.Exception x) :cljs (instance? js/Error x)))
-    (fail (ex-message x) (or (ex-data x) {}))
+    (fail (ex-message x) (ex-data x))
     x))
 
 (defn ok?
@@ -115,7 +119,7 @@
 
 (defmacro catching
   "`try` to execute `expr`, if `catch` an error returns it itself"
-  ([expr                     ] `(-catching ~expr ~'_ nil))
+  ([expr                     ] `(catching ~expr ~'_ nil))
   ([expr err catch]
    `(-if-clj
      (try ~expr (catch Exception ~err ~catch))
@@ -176,7 +180,6 @@
             then))
         `(if (ok? ~test-or-bindings) ~then ~else)))))
 
-
 (defn call
   "[[attempt]] to call function `f` on value `x`"
   [x f]
@@ -210,14 +213,14 @@
   meets [[isa?]] condition"
   ([x pred]
    (if (and (ok? x) (isa? (unreduced x) pred)) (fail) x))
-  ([x pred msg-or-fn]
+  ([x pred msg]
+   (if (and (ok? x) (isa? (unreduced x) pred)) (fail msg) x))
+  ([x pred msg data-or-fn]
    (if (and (ok? x) (isa? (unreduced x) pred))
-     (if (fn? msg-or-fn)
-       (apply fail (msg-or-fn x))
-       (fail msg-or-fn))
-     x))
-  ([x pred msg data]
-   (if (and (ok? x) (isa? (unreduced x) pred)) (fail msg data) x)))
+     (if (fn? data-or-fn)
+       (fail msg (data-or-fn x))
+       (fail msg data-or-fn))
+     x)))
 
 (defn throw-if
   "throw [[fail!]] with optional `msg` and `data` if `x` is [[ok?]] and
@@ -228,11 +231,6 @@
    (if-ok [result (fail-if x pred msg-or-fn)] result (throw result)))
   ([x pred msg data]
    (if-ok [result (fail-if x pred msg data)] result (throw result))))
-
-(throw-if {:a 1} {:a 1})
-(time (dotimes [n 1e3] (attempt (throw (fail)))))
-(time (dotimes [n 1e3] (attempt (throw (ex-info "" {})))))
-(time (dotimes [n 1e3] (-catching (throw (ex-info "" {})))))
 
 (defn finally
   "[[attempt]] to call function `f` on `unreduced` value of `x`. return `x`
