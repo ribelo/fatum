@@ -25,7 +25,7 @@
     <scm>
     <connection>scm:git:git://github.com/ribelo/fatum.git</connection>
     <developerConnection>scm:git:ssh://git@github.com/ribelo/fatum.git</developerConnection>
-    <tag>c1dd7c06424bdd18782132b0c5fa000c51c1f298</tag>
+    <tag>dd3371c74baae9bd3af0b298664c183b6bf5319f</tag>
     <url>https://github.com/ribelo/fatum</url>
   </scm>
 
