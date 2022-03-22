@@ -146,8 +146,9 @@
 #?(:clj
    (defmacro when-ok
      "Like `clojure.core/when` however if first arg is binding vector behave like
-  `clojure.core/when-let`, but can bind multiple values. check if all tests/bindings
-  are [[ok?]], else return  `fail`"
+  `clojure.core/when-let`, but can bind multiple values. check if all
+  tests/bindings are [[ok?]], else return `fail` with attached var & failing
+  expresions"
      {:style/indent 1}
      ([test-or-bindings & body]
       (if (vector? test-or-bindings)
@@ -164,7 +165,7 @@
 
 #?(:clj
    (defmacro if-ok
-     "Like `core/if-let` but can bind multiple values for `then` iff all tests
+     "Like `core/if-let` but can bind multiple values. execute `then` if all tests
   are `ok?`"
      {:style/indent 1}
      ([test-or-bindings then     ] `(when-ok ~test-or-bindings ~then))
@@ -187,7 +188,7 @@
   (attempt (f x)))
 
 (defn then
-  "[[attempt]] to call function `f` on value `x` if `x` is [[ok?]] and not
+  "[[attempt]] to call function `f` on value `x` if `x` is [[ok?]] and is not
   `reduced`"
   [x f]
   (if (and (not (reduced? x)) (ok? x)) (attempt (f x)) x))
@@ -284,7 +285,7 @@
                          more)))))
 
 #?(:cljs
-   (def transit-write-handlers
+   (def ^:no-doc transit-write-handlers
      {Fail
       (reify Object
         (tag [_ _] "f/fail")
@@ -293,4 +294,4 @@
         (verboseHandler [_] nil))}))
 
 #?(:cljs
-   (def transit-read-handlers {"f/fail" (fn [[msg data]] (fail msg data))}))
+   (def ^:no-doc transit-read-handlers {"f/fail" (fn [[msg data]] (fail msg data))}))
