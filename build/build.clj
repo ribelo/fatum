@@ -2,10 +2,12 @@
   (:require
    [clojure.tools.build.api :as b]
    [clojure.java.shell :as shell]
-   [clojure.string :as string]
+   [clojure.string :as str]
    [meander.epsilon :as m]
    [deps-deploy.deps-deploy :as d]
    [badigeon.javac :as javac]))
+
+(def scm-url "git@github.com:ribelo/fatum.git")
 
 (defn javac [_]
   (println "Compiling Java")
@@ -16,12 +18,22 @@
                                          "-source" "1.8" "-Xlint:-options"]})
   (println "Compilation Completed"))
 
+(defn sha
+  [{:keys [dir path] :or {dir "."}}]
+  (-> {:command-args (cond-> ["git" "rev-parse" "HEAD"]
+                       path (conj "--" path))
+       :dir (.getPath (b/resolve-path dir))
+       :out :capture}
+      b/process
+      :out
+      str/trim))
+
 (defn git-branch-name
   "Attempts to get the current branch name via the shell."
   []
   (m/match (shell/sh "git" "rev-parse" "--abbrev-ref" "HEAD")
     {:exit 0, :out ?out}
-    (string/trim ?out)
+    (str/trim ?out)
 
     ?result
     (throw (ex-info "Unable to compute branch name" ?result))))
@@ -36,7 +48,7 @@
   []
   (m/match (shell/sh "git" "rev-list" (str git-commit-count-start "...") "--count")
     {:exit 0, :out ?out}
-    (string/trim ?out)
+    (str/trim ?out)
 
     ?result
     (throw (ex-info "Unable to compute commit count" ?result))))
@@ -53,7 +65,11 @@
                 :lib       lib
                 :version   version
                 :basis     basis
-                :src-dirs  ["src"]})
+                :src-dirs  ["src"]
+                :scm {:tag (sha nil)
+                      :connection (str "scm:git:" scm-url)
+                      :developerConnection (str "scm:git:" scm-url)
+                      :url scm-url}})
   (javac _)
   (b/copy-dir {:src-dirs   ["src"]
                :target-dir class-dir})
