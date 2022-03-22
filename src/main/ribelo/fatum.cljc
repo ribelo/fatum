@@ -61,34 +61,57 @@
      :cljs
      (instance? js/Error x)))
 
+(defn ensure-fail
+  "ensure that `Exception` `err` is [[Fail]]"
+  [x]
+  (if (and (fail? x) #?(:clj (instance? java.lang.Exception x) :cljs (instance? js/Error x)))
+    (fail (ex-message x) (or (ex-data x) {}))
+    x))
+
 (defn ok?
   "check if `x` is not [[Fail]]"
   [x]
   (not (fail? x)))
 
+(defn exception-info?
+  [x]
+  #?(:clj  (instance? clojure.lang.IExceptionInfo x)
+     :cljs (instance? ExceptionInfo x)))
+
+(defn -match-map?
+  "chech if `x` has every `m` `kv`"
+  [x m]
+  (when (or (map? x) (exception-info? x))
+    (reduce-kv
+     (fn [_ k v]
+       (if (= v (get x k))
+         true
+         (reduced false)))
+     true
+     m)))
+
 (defn isa?
   "check if `x` meets `pred`, or whether `Exception` has in `ex-data` under the
   key `k` the value `v`"
-  ([x pred]
+  [x pred]
    #?(:clj
       (cond
         (class? pred)
         (instance? pred x)
         (keyword? pred)
-        (isa? x pred true)
+        (true? (get x pred))
         (fn? pred)
-        (pred x))
+        (pred x)
+        (map? pred)
+        (-match-map? x pred))
       :cljs
       (cond
         (keyword? pred)
-        (isa? x pred true)
+        (true? (get x pred))
         (fn? pred)
-        (or (instance? pred x) (pred x)))))
-  ([x k v]
-   (and #?(:clj  (instance? clojure.lang.IExceptionInfo x)
-           :cljs (instance? ExceptionInfo x))
-        (= v #?(:clj  (.valAt ^clojure.lang.ILookup (ex-data x) k)
-                :cljs (.get (ex-data x) k))))))
+        (or (instance? pred x) (pred x))
+        (map? pred)
+        (-match-map? x pred))))
 
 (defmacro catching
   "`try` to execute `expr`, if `catch` an error returns it itself"
@@ -113,7 +136,46 @@
    (defmacro attempt
      "like [[catching]], but takes `body` as argument"
      [& body]
-     `(catching (do ~@body) e# e#)))
+     `(catching (do ~@body) e# (ensure-fail e#))))
+
+#?(:clj
+   (defmacro when-ok
+     "Like `clojure.core/when` however if first arg is binding vector behave like
+  `clojure.core/when-let`, but can bind multiple values. check if all tests/bindings
+  are [[ok?]], else return  `fail`"
+     {:style/indent 1}
+     ([test-or-bindings & body]
+      (if (vector? test-or-bindings)
+        (let [s (seq test-or-bindings)]
+          (if s                         ; (when-let [] true) => true
+            (let [[b1 b2 & bnext] s]
+              `(let [b2# (attempt ~b2)
+                     ~b1 b2#]
+                 (if (ok? b2#)
+                   (when-ok ~(vec bnext) ~@body)
+                   (fail (ex-message b2#) {:binding '~b1 :expr '~b2}))))
+            `(do ~@body)))
+        `(when-ok [x# ~test-or-bindings] ~@body)))))
+
+#?(:clj
+   (defmacro if-ok
+     "Like `core/if-let` but can bind multiple values for `then` iff all tests
+  are `ok?`"
+     {:style/indent 1}
+     ([test-or-bindings then     ] `(when-ok ~test-or-bindings ~then))
+     ([test-or-bindings then else]
+      (if (vector? test-or-bindings)
+        (let [s (seq test-or-bindings)]
+          (if s                         ; (if-let [] true false) => true
+            (let [[b1 b2 & bnext] s]
+              `(let [b2# (attempt ~b2)
+                     ~b1 b2#]
+                 (if (ok? b2#)
+                   (if-ok ~(vec bnext) ~then ~else)
+                   (let [~b1 (assoc ~b1 :binding '~b1 :expr '~b2)] ~else))))
+            then))
+        `(if (ok? ~test-or-bindings) ~then ~else)))))
+
 
 (defn call
   "[[attempt]] to call function `f` on value `x`"
@@ -129,10 +191,8 @@
 (defn then-if
   "[[attempt]] to call function `f` on value `x` if `x` is [[ok?]], not `reduced`
   and meets [[isa?]] condition"
-  ([x pred f]
-   (if (and (not (reduced? x)) (ok? x) (isa? x pred)) (attempt (f x)) x))
-  ([x k v f]
-   (if (and (not (reduced? x)) (ok? x) (isa? x k v)) (attempt (f x)) x)))
+  [x pred f]
+  (if (and (not (reduced? x)) (ok? x) (isa? x pred)) (attempt (f x)) x))
 
 (defn catch
   "[[attempt]] to call function `f` on value `x` if `x` is [[fail?]]"
@@ -142,34 +202,37 @@
 (defn catch-if
   "[[attempt]] to call function `f` on value `x` if `x` is [[fail?]], not
   `reduced` and meets [[isa?]] condition"
-  ([x pred f]
-   (if (and (fail? x) (isa? x pred)) (attempt (f x)) x))
-  ([x k v f]
-   (if (and (fail? x) (isa? x k v)) (attempt (f x)) x)))
+  [x pred f]
+  (if (and (fail? x) (isa? x pred)) (attempt (f x)) x))
 
 (defn fail-if
   "return [[fail]] with optional `msg` and `data` if `x` is [[ok?]] and
   meets [[isa?]] condition"
   ([x pred]
    (if (and (ok? x) (isa? (unreduced x) pred)) (fail) x))
-  ([x pred msg]
-   (if (and (ok? x) (isa? (unreduced x) pred)) (fail msg) x))
+  ([x pred msg-or-fn]
+   (if (and (ok? x) (isa? (unreduced x) pred))
+     (if (fn? msg-or-fn)
+       (apply fail (msg-or-fn x))
+       (fail msg-or-fn))
+     x))
   ([x pred msg data]
-   (if (and (ok? x) (isa? (unreduced x) pred)) (fail msg data) x))
-  ([x k v msg data]
-   (if (and (ok? x) (isa? (unreduced x) k v)) (fail msg data) x)))
+   (if (and (ok? x) (isa? (unreduced x) pred)) (fail msg data) x)))
 
 (defn throw-if
   "throw [[fail!]] with optional `msg` and `data` if `x` is [[ok?]] and
   meets [[isa?]] condition"
   ([x pred]
-   (if (and (ok? x) (isa? (unreduced x) pred)) (fail!) x))
-  ([x pred msg]
-   (if (and (ok? x) (isa? (unreduced x) pred)) (fail! msg) x))
+   (if-ok [result (fail-if x pred)] result (throw result)))
+  ([x pred msg-or-fn]
+   (if-ok [result (fail-if x pred msg-or-fn)] result (throw result)))
   ([x pred msg data]
-   (if (and (ok? x) (isa? (unreduced x) pred)) (fail! msg data) x))
-  ([x k v msg data]
-   (if (and (ok? x) (isa? (unreduced x) k v)) (fail! msg data) x)))
+   (if-ok [result (fail-if x pred msg data)] result (throw result))))
+
+(throw-if {:a 1} {:a 1})
+(time (dotimes [n 1e3] (attempt (throw (fail)))))
+(time (dotimes [n 1e3] (attempt (throw (ex-info "" {})))))
+(time (dotimes [n 1e3] (-catching (throw (ex-info "" {})))))
 
 (defn finally
   "[[attempt]] to call function `f` on `unreduced` value of `x`. return `x`
@@ -192,47 +255,7 @@
   "[[attempt]] to call function `f` on `unreduced` value of `x` if `unreduced` `x`
   meets [[isa?]] condition. return `x` unchanged. used for side effects"
   ([x pred f]
-   (if (isa? (unreduced x) pred) (do (f (unreduced x)) x) x))
-  ([x k v f]
-   (if (isa? (unreduced x) k v) (do (f (unreduced x)) x) x)))
-
-#?(:clj
-   (defmacro when-ok
-     "Like `clojure.core/when` however if first arg is binding vector behave like
-  `clojure.core/when-let`, but can bind multiple values. check if all tests/bindings
-  are [[ok?]], else return  `fail`"
-     {:style/indent 1}
-     ([test-or-bindings & body]
-      (if (vector? test-or-bindings)
-        (let [s (seq test-or-bindings)]
-          (if s                         ; (when-let [] true) => true
-            (let [[b1 b2 & bnext] s]
-              `(let [b2# (attempt ~b2)]
-                 (if (ok? b2#)
-                   (let [~b1 b2#]
-                     (when-ok ~(vec bnext) ~@body))
-                   (fail (ex-message b2#) {:binding '~b1 :expr '~b2}))))
-            `(do ~@body)))
-        `(when-ok [x# ~test-or-bindings] ~@body)))))
-
-#?(:clj
-   (defmacro if-ok
-     "Like `core/if-let` but can bind multiple values for `then` iff all tests
-  are `ok?`"
-     {:style/indent 1}
-     ([test-or-bindings then     ] `(when-ok ~test-or-bindings ~then))
-     ([test-or-bindings then else]
-      (if (vector? test-or-bindings)
-        (let [s (seq test-or-bindings)]
-          (if s                         ; (if-let [] true false) => true
-            (let [[b1 b2 & bnext] s]
-              `(let [b2# (attempt ~b2)]
-                 (if (ok? b2#)
-                   (let [~b1 b2#]
-                     (if-ok ~(vec bnext) ~then ~else))
-                   ~else)))
-            then))
-        `(if (ok? ~test-or-bindings) ~then ~else)))))
+   (if (isa? (unreduced x) pred) (do (f (unreduced x)) x) x)))
 
 #?(:clj
    (defmacro ->
