@@ -4,8 +4,42 @@
   <packaging>jar</packaging>
   <groupId>fatum</groupId>
   <artifactId>fatum</artifactId>
-  <version>0.1.0</version>
+  <version>0.0.12</version>
   <name>fatum</name>
+  <url>https://github.com/ribelo/fatum</url>
+  <scm>
+    <connection>scm:git:git://github.com/ribelo/fatum.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com/ribelo/fatum.git</developerConnection>
+    <tag>dd3371c74baae9bd3af0b298664c183b6bf5319f</tag>
+    <url>https://github.com/ribelo/fatum</url>
+  </scm>
+  <distributionManagement>
+    <repository>
+      <id>clojars</id>
+      <name>Clojars repository</name>
+      <url>https://clojars.org/repo</url>
+    </repository>
+  </distributionManagement>
+  <build>
+    <sourceDirectory>src/main</sourceDirectory>
+    <resources>
+      <resource>
+        <directory>src/main</directory>
+      </resource>
+    </resources>
+    <directory>target</directory>
+    <outputDirectory>target/classes</outputDirectory>
+    <plugins>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+                <source>8</source>
+                <target>8</target>
+            </configuration>
+        </plugin>
+    </plugins>
+  </build>
   <dependencies>
     <dependency>
       <groupId>org.clojure</groupId>
@@ -13,20 +47,10 @@
       <version>1.10.3</version>
     </dependency>
   </dependencies>
-  <build>
-    <sourceDirectory>src/main</sourceDirectory>
-  </build>
   <repositories>
     <repository>
       <id>clojars</id>
       <url>https://repo.clojars.org/</url>
     </repository>
   </repositories>
-    <scm>
-    <connection>scm:git:git://github.com/ribelo/fatum.git</connection>
-    <developerConnection>scm:git:ssh://git@github.com/ribelo/fatum.git</developerConnection>
-    <tag>dd3371c74baae9bd3af0b298664c183b6bf5319f</tag>
-    <url>https://github.com/ribelo/fatum</url>
-  </scm>
-
 </project>
