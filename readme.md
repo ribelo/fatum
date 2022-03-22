@@ -59,7 +59,7 @@ the main idea behind `fatum`, as behind [fmnoise/flow](https://github.com/fmnois
 in addition, to improve performance, the `stacktrace`, which is completely unnecessary in this case, is not included. creating a `Fail` as opposed to throwing an `Exception` is immediate and costless.
 
 
-<a id="org7d83db7"></a>
+<a id="org3157b64"></a>
 
 ### attempt
 
@@ -83,7 +83,7 @@ this is similar to the solution found in [failjure](https://github.com/adambard/
 
 the most natural and idiomatic way to define a path is to use `->`, a similar solution can be found in `js`, where promises are handled with an endless sequence of `then`.
 
-`then` [1.2.3](#org7d83db7) to call function `f` when value is not an `Exception`, otherwise bypass.
+`then` [attempt](#org3157b64) to call function `f` when value is not meet `fail?` pred, otherwise bypass.
 
 ```clojure
 (-> 1
@@ -99,7 +99,7 @@ the most natural and idiomatic way to define a path is to use `->`, a similar so
 
 trying to use `->` together with `try/catch` will inevitably lead to a mess. again, `js` comes to the rescue, which implements a `catch` for promises.
 
-`catch` [1.2.3](#org7d83db7) to call function `f` when value meets `fail?` pred, otherwise bypass.
+`catch` [attempt](#org3157b64) to call function `f` when value meets `fail?` pred, otherwise bypass.
 
 ```clojure
 (-> 1
@@ -122,7 +122,7 @@ trying to use `->` together with `try/catch` will inevitably lead to a mess. aga
 
 the world is not `pure` and sometimes you just have to.
 
-`thru` [1.2.3](#org7d83db7) to call function `f`, bypassing value unchanged
+`thru` [attempt](#org3157b64) to call function `f`, bypassing value unchanged
 
 ```clojure
 (-> 1 (f/then inc) (f/thru println))

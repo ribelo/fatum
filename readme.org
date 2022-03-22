@@ -97,7 +97,7 @@ the most natural and idiomatic way to define a path is to use =->=, a similar
 solution can be found in =js=, where promises are handled with an endless sequence
 of =then=.
 
-=then= [[attempt]] to call function =f= when value is not an =Exception=, otherwise
+=then= [[attempt][attempt]] to call function =f= when value is not meet =fail?=  pred, otherwise
 bypass.
 
 #+begin_src clojure :results silent :exports code
@@ -114,7 +114,7 @@ bypass.
 trying to use =->= together with =try/catch= will inevitably lead to a mess. again,
 =js= comes to the rescue, which implements a =catch= for promises.
 
-=catch= [[attempt]] to call function =f= when value meets =fail?=  pred, otherwise
+=catch= [[attempt][attempt]] to call function =f= when value meets =fail?=  pred, otherwise
 bypass.
 
 #+begin_src clojure :results silent :exports code
@@ -137,7 +137,7 @@ bypass.
 
 the world is not =pure= and sometimes you just have to.
 
-=thru= [[attempt]] to call function =f=, bypassing value unchanged
+=thru= [[attempt][attempt]] to call function =f=, bypassing value unchanged
 
 #+begin_src clojure :results silent :exports code
 (-> 1 (f/then inc) (f/thru println))
