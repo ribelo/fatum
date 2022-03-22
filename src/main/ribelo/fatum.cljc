@@ -78,12 +78,13 @@
   (not (fail? x)))
 
 (defn exception-info?
+  "check if `x` is `ExceptionInfo`"
   [x]
   #?(:clj  (instance? clojure.lang.IExceptionInfo x)
      :cljs (instance? ExceptionInfo x)))
 
 (defn -match-map?
-  "chech if `x` has every `m` `kv`"
+  "chech if `x` has every `kv` from `m`"
   [x m]
   (when (or (map? x) (exception-info? x))
     (reduce-kv
