@@ -38,12 +38,10 @@ handling exceptions in a functional way, is a non-trivial problem. one way to so
 
 sufficiently complex, repeatedly revised and refactored code tends towards an infinite number of `if-else` conditions.
 
-![img](https://miro.medium.com/max/360/1*MlHI_FUwZTUTNiXQkwwIvQ.JPEG)
-
 
 ### performance
 
-it is worth noting that exception handling in java is slow, very slow. using a custom type for exceptions allows the `stacktrace` to be omitted. throwing also involves an additional cost, the passing of value is much cheaper and faster.
+it is worth noting that exception handling in java is slow, very slow. using a custom type for exceptions allows the `stacktrace` to be omitted. throwing also involves an additional cost, the passing of value is much cheaper and faster. creating a fail is ~50x faster than creating an exception.
 
 
 ## fatum
@@ -51,7 +49,7 @@ it is worth noting that exception handling in java is slow, very slow. using a c
 
 ### either
 
-the main idea behind `fatum`, as behind [fmnoise/flow](https://github.com/fmnoise/flow/), is to separate values from errors. exceptions are first class citizens in `java/javascript` and there is no need for additional abstractions. each value is either `ok?`, either `fail?`.
+the main idea behind `fatum`, as behind [fmnoise/flow](https://github.com/fmnoise/flow/), is to separate values from errors. exceptions are first class citizens in `java/javascript` and there is no need for additional abstractions. each value can be either `ok?`, either `fail?`.
 
 
 ### Fail
@@ -61,7 +59,7 @@ the main idea behind `fatum`, as behind [fmnoise/flow](https://github.com/fmnois
 in addition, to improve performance, the `stacktrace`, which is completely unnecessary in this case, is not included. creating a `Fail` as opposed to throwing an `Exception` is immediate and costless.
 
 
-<a id="org69dcc91"></a>
+<a id="org7d83db7"></a>
 
 ### attempt
 
@@ -85,7 +83,7 @@ this is similar to the solution found in [failjure](https://github.com/adambard/
 
 the most natural and idiomatic way to define a path is to use `->`, a similar solution can be found in `js`, where promises are handled with an endless sequence of `then`.
 
-`then` [1.2.3](#org69dcc91) to call function `f` when value is not an `Exception`, otherwise bypass.
+`then` [1.2.3](#org7d83db7) to call function `f` when value is not an `Exception`, otherwise bypass.
 
 ```clojure
 (-> 1
@@ -101,7 +99,7 @@ the most natural and idiomatic way to define a path is to use `->`, a similar so
 
 trying to use `->` together with `try/catch` will inevitably lead to a mess. again, `js` comes to the rescue, which implements a `catch` for promises.
 
-`catch` [1.2.3](#org69dcc91) to call function `f` when value is an `Exception`, otherwise bypass.
+`catch` [1.2.3](#org7d83db7) to call function `f` when value meets `fail?` pred, otherwise bypass.
 
 ```clojure
 (-> 1
@@ -124,7 +122,7 @@ trying to use `->` together with `try/catch` will inevitably lead to a mess. aga
 
 the world is not `pure` and sometimes you just have to.
 
-`thru` [1.2.3](#org69dcc91) to call function `f`, bypassing value unchanged
+`thru` [1.2.3](#org7d83db7) to call function `f`, bypassing value unchanged
 
 ```clojure
 (-> 1 (f/then inc) (f/thru println))

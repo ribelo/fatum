@@ -46,13 +46,12 @@ A program is a spell cast over a computer, turning input into error messages.
 sufficiently complex, repeatedly revised and refactored code tends towards an
 infinite number of =if-else= conditions.
 
-[[https://miro.medium.com/max/360/1*MlHI_FUwZTUTNiXQkwwIvQ.JPEG]]
-
 *** performance
 
 it is worth noting that exception handling in java is slow, very slow. using a
 custom type for exceptions allows the =stacktrace= to be omitted. throwing also
 involves an additional cost, the passing of value is much cheaper and faster.
+creating a fail is ~50x faster than creating an exception.
 
 ** fatum
 
@@ -60,7 +59,7 @@ involves an additional cost, the passing of value is much cheaper and faster.
 
 the main idea behind =fatum=, as behind [[https://github.com/fmnoise/flow/][fmnoise/flow]], is to separate values from
 errors. exceptions are first class citizens in =java/javascript= and there is no
-need for additional abstractions. each value is either =ok?=, either =fail?=.
+need for additional abstractions. each value can be either =ok?=, either =fail?=.
 
 *** Fail
 
@@ -115,7 +114,7 @@ bypass.
 trying to use =->= together with =try/catch= will inevitably lead to a mess. again,
 =js= comes to the rescue, which implements a =catch= for promises.
 
-=catch= [[attempt]] to call function =f= when value is an =Exception=, otherwise
+=catch= [[attempt]] to call function =f= when value meets =fail?=  pred, otherwise
 bypass.
 
 #+begin_src clojure :results silent :exports code
