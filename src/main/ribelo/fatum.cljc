@@ -42,7 +42,10 @@
      (-empty [this] (Fail. (.-message this) {}))))
 
 (defn fail
-  "returns [[Fail]]"
+  "returns [[Fail]]
+
+  for flexibility, the `data` can be either a map, an explicit kv collection or
+  a variadic kv collection "
   ([] (Fail. nil {}))
   ([msg] (Fail. msg {}))
   ([msg data]
@@ -51,14 +54,16 @@
    (Fail. msg (apply array-map k v kvs))))
 
 (defn fail!
-  "throw [[Fail]]"
+  "throw [[Fail]]
+
+  see [[fail]]"
   ([] (throw (fail)))
   ([msg] (throw (fail msg)))
   ([msg data] (throw (fail msg data)))
   ([msg k v & kvs] (throw (apply fail msg k v kvs))))
 
 (defn fail?
-  "check if `x` is instance of Exception or js/Error in cljs"
+  "check if `x` is instance of `Exception` in clj or `js/Error` in cljs"
   [x]
   #?(:clj
      (instance? java.lang.Exception x)
@@ -97,29 +102,37 @@
 
 (defn isa?
   "check if `x` meets `pred`, or whether `Exception` has in `ex-data` under the
-  key `k` the value `v`"
+  key `k` the value `v`
+
+  `(isa? 1 number?) => true`
+  `(isa? java.lang.ArithmeticException (catching (/ 1 0))) => true`
+  `(isa? {:a 1 :b 2} {:a 1}) => true`
+  `(isa? {:a 1 :b 2} {:c 3}) => false`"
   [x pred]
-   #?(:clj
-      (cond
-        (class? pred)
-        (instance? pred x)
-        (keyword? pred)
-        (true? (get x pred))
-        (fn? pred)
-        (pred x)
-        (map? pred)
-        (-match-map? x pred))
-      :cljs
-      (cond
-        (keyword? pred)
-        (true? (get x pred))
-        (fn? pred)
-        (or (instance? pred x) (pred x))
-        (map? pred)
-        (-match-map? x pred))))
+  #?(:clj
+     (cond
+       (class? pred)
+       (instance? pred x)
+       (keyword? pred)
+       (true? (get x pred))
+       (fn? pred)
+       (pred x)
+       (map? pred)
+       (-match-map? x pred))
+     :cljs
+     (cond
+       (keyword? pred)
+       (true? (get x pred))
+       (fn? pred)
+       (or (instance? pred x) (pred x))
+       (map? pred)
+       (-match-map? x pred))))
 
 (defmacro catching
-  "`try` to execute `expr`, if `catch` an error returns it itself"
+  "`try` to execute `expr`, if `catch` an error returns it itself
+
+  `(catching (/ 1 0) => nil`
+  `(catching (/ 1 0) e e) => java.lang.ArithmeticException`"
   ([expr                     ] `(catching ~expr ~'_ nil))
   ([expr err catch]
    `(-if-clj
@@ -133,22 +146,74 @@
 #?(:clj
    (defmacro catch-errors
      "like [[catching]], but returns a vector where the first element is the result of
-  executing the `body` and the second is an `Exception`"
+  executing the `body` and the second is an `Exception`
+
+  `(catch-errors (/ 1 1)) => [1 nil]`
+  `(catch-errors (/ 1 0)) => [nil java.lang.ArithmeticException]"
      [& body]
      `(-catching [(do ~@body) nil] e# [nil e#])))
 
 #?(:clj
    (defmacro attempt
-     "like [[catching]], but takes `body` as argument"
+     "like [[catching]], but takes `body` as argument
+
+  `(attempt (/ 1 1))
+  => 1`
+
+  `(attempt (/ 1 0))
+  =>
+  #error {
+  :cause \"Divide by zero\"
+  :data {}
+  :via
+  [{:type ribelo.fatum.Fail
+   :message \"Divide by zero\"
+   :data {}}]
+  :trace
+  []} `"
      [& body]
      `(catching (do ~@body) e# (ensure-fail e#))))
+
+
+(when-ok [x (/ 1 0)] :ok)
 
 #?(:clj
    (defmacro when-ok
      "Like `clojure.core/when` however if first arg is binding vector behave like
   `clojure.core/when-let`, but can bind multiple values. check if all
   tests/bindings are [[ok?]], else return `fail` with attached var & failing
-  expresions"
+  expresions
+
+  `(when-ok (/ 1 1) :ok)
+  => :ok`
+
+  `(when-ok nil :ok)
+  => :ok`
+
+  `(when-ok (/ 1 0) :ok
+  =>
+  #error {
+  :cause \"Divide by zero\"
+  :data {:binding test, :expr (/ 1 0)}
+  :via
+  [{:type ribelo.fatum.Fail
+   :message \"Divide by zero\"
+   :data {:binding test, :expr (/ 1 0)}}]
+  :trace
+  []}`
+
+  `(when-ok [x (/ 1 0)] :ok)
+  =>
+  #error {
+  :cause \"Divide by zero\"
+  :data {:binding x, :expr (/ 1 0)}
+  :via
+  [{:type ribelo.fatum.Fail
+   :message \"Divide by zero\"
+   :data {:binding x, :expr (/ 1 0)}}]
+  :trace
+  []}`
+  "
      {:style/indent 1}
      ([test-or-bindings & body]
       (if (vector? test-or-bindings)
@@ -161,12 +226,22 @@
                    (when-ok ~(vec bnext) ~@body)
                    (fail (ex-message b2#) {:binding '~b1 :expr '~b2}))))
             `(do ~@body)))
-        `(when-ok [x# ~test-or-bindings] ~@body)))))
+        `(when-ok [~'test ~test-or-bindings] ~@body)))))
 
 #?(:clj
    (defmacro if-ok
      "Like `core/if-let` but can bind multiple values. execute `then` if all tests
-  are `ok?`"
+  are `ok?`
+
+  `(if-ok (/ 1 1) :ok :err)
+  => :ok`
+
+  `(if-ok (/ 1 1) :ok :err)
+  => :err`
+
+  `(if-ok nil :ok :err)
+  => :ok`
+  "
      {:style/indent 1}
      ([test-or-bindings then     ] `(when-ok ~test-or-bindings ~then))
      ([test-or-bindings then else]
@@ -183,36 +258,94 @@
         `(if (ok? ~test-or-bindings) ~then ~else)))))
 
 (defn call
-  "[[attempt]] to call function `f` on value `x`"
+  "[[attempt]] to call function `f` on value `x`
+
+  `(call 1 inc)
+  => 2`
+
+  `(call \"1\" inc)
+  =>
+  #error {
+  :cause \"class java.lang.String cannot be cast to class java.lang.Number ...\"
+  :data {}
+  :via
+  [{:type ribelo.fatum.Fail
+   :message \"class java.lang.String cannot be cast to class java.lang.Number ... \"
+   :data {}}]
+  :trace
+  []}`
+  "
   [x f]
   (attempt (f x)))
 
 (defn then
   "[[attempt]] to call function `f` on value `x` if `x` is [[ok?]] and is not
-  `reduced`"
+  `reduced`
+
+  `(-> {:name \"Ivan\" :age 17}
+      (then #(update % :age inc)))
+  => {:name \"Ivan\", :age 18}`
+  "
   [x f]
   (if (and (not (reduced? x)) (ok? x)) (attempt (f x)) x))
 
 (defn then-if
   "[[attempt]] to call function `f` on value `x` if `x` is [[ok?]], not `reduced`
-  and meets [[isa?]] condition"
+  and meets [[isa?]] condition
+
+  `(-> {:name \"Ivan\" :age 17}
+      (then-if (comp (partial <= 18) :age) #(assoc % :adult true))
+      (then-if (comp (partial > 18) :age) #(assoc % :adult false)))
+   => {:name \"Ivan\", :age 17, :adult false}
+  `"
   [x pred f]
   (if (and (not (reduced? x)) (ok? x) (isa? x pred)) (attempt (f x)) x))
 
 (defn catch
-  "[[attempt]] to call function `f` on value `x` if `x` is [[fail?]]"
+  "[[attempt]] to call function `f` on value `x` if `x` is [[fail?]]
+
+  `(-> {:name \"Ivan\" :age 17}
+      (then-if (comp (partial <= 18) :age) #(assoc % :adult true))
+      (then-if (comp (partial > 18) :age) #(assoc % :adult false))
+      (fail-if (complement (comp :adult)) \"user is underage\" #(find % :age))
+      (catch-if (constantly :err)))
+  => :err`"
   [x f]
   (if (fail? x) (attempt (f x)) x))
 
 (defn catch-if
   "[[attempt]] to call function `f` on value `x` if `x` is [[fail?]], not
-  `reduced` and meets [[isa?]] condition"
+  `reduced` and meets [[isa?]] condition
+
+  `(-> {:name \"Ivan\" :age 17}
+      (then-if (comp (partial <= 18) :age) #(assoc % :adult true))
+      (then-if (comp (partial > 18) :age) #(assoc % :adult false))
+      (fail-if (complement (comp :adult)) \"user is underage\" #(find % :age))
+      (catch-if (comp (partial > 18) :age) (constantly :err)))
+  => :err`"
   [x pred f]
   (if (and (fail? x) (isa? x pred)) (attempt (f x)) x))
 
+
 (defn fail-if
   "return [[fail]] with optional `msg` and `data` if `x` is [[ok?]] and
-  meets [[isa?]] condition"
+  meets [[isa?]] condition
+
+  `(-> {:name \"Ivan\" :age 17}
+      (then-if (comp (partial <= 18) :age) #(assoc % :adult true))
+      (then-if (comp (partial > 18) :age) #(assoc % :adult false))
+      (fail-if (complement (comp :adult)) \"user is underage\" (juxt (constantly :user) identity)))
+  =>
+  #error {
+  :cause \"user is underage\"
+  :data {:user {:name \"Ivan\", :age 17, :adult false}}
+  :via
+  [{:type ribelo.fatum.Fail
+   :message \"user is underage\"
+   :data {:user {:name \"Ivan\", :age 17, :adult false}}}]
+  :trace
+  []}
+  `"
   ([x pred]
    (if (and (ok? x) (isa? (unreduced x) pred)) (fail) x))
   ([x pred msg]
@@ -226,7 +359,9 @@
 
 (defn throw-if
   "throw [[fail!]] with optional `msg` and `data` if `x` is [[ok?]] and
-  meets [[isa?]] condition"
+  meets [[isa?]] condition
+
+  see [[fail-if]]"
   ([x pred]
    (if-ok [result (fail-if x pred)] result (throw result)))
   ([x pred msg-or-fn]
