@@ -174,9 +174,6 @@
      [& body]
      `(catching (do ~@body) e# (ensure-fail e#))))
 
-
-(when-ok [x (/ 1 0)] :ok)
-
 #?(:clj
    (defmacro when-ok
      "Like `clojure.core/when` however if first arg is binding vector behave like
