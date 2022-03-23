@@ -104,10 +104,18 @@
   "check if `x` meets `pred`, or whether `Exception` has in `ex-data` under the
   key `k` the value `v`
 
-  `(isa? 1 number?) => true`
-  `(isa? java.lang.ArithmeticException (catching (/ 1 0))) => true`
-  `(isa? {:a 1 :b 2} {:a 1}) => true`
-  `(isa? {:a 1 :b 2} {:c 3}) => false`"
+  ```clojure
+  (isa? 1 number?) => true
+  ```
+  ```clojure
+  (isa? java.lang.ArithmeticException (catching (/ 1 0))) => true
+  ```
+  ```clojure
+  (isa? {:a 1 :b 2} {:a 1}) => true
+  ```
+  ```clojure
+  (isa? {:a 1 :b 2} {:c 3}) => false
+  ```"
   [x pred]
   #?(:clj
      (cond
@@ -131,8 +139,12 @@
 (defmacro catching
   "`try` to execute `expr`, if `catch` an error returns it itself
 
-  `(catching (/ 1 0) => nil`
-  `(catching (/ 1 0) e e) => java.lang.ArithmeticException`"
+  ```clojure
+  (catching (/ 1 0) => nil
+  ```
+  ```clojure
+  (catching (/ 1 0) e e) => java.lang.ArithmeticException
+  ```"
   ([expr                     ] `(catching ~expr ~'_ nil))
   ([expr err catch]
    `(-if-clj
@@ -148,8 +160,12 @@
      "like [[catching]], but returns a vector where the first element is the result of
   executing the `body` and the second is an `Exception`
 
-  `(catch-errors (/ 1 1)) => [1 nil]`
-  `(catch-errors (/ 1 0)) => [nil java.lang.ArithmeticException]"
+  ```clojure
+  (catch-errors (/ 1 1)) => [1 nil]
+  ```
+  ```clojure
+  (catch-errors (/ 1 0)) => [nil java.lang.ArithmeticException]
+  ```"
      [& body]
      `(-catching [(do ~@body) nil] e# [nil e#])))
 
@@ -157,10 +173,13 @@
    (defmacro attempt
      "like [[catching]], but takes `body` as argument
 
-  `(attempt (/ 1 1))
-  => 1`
+  ```clojure
+  (attempt (/ 1 1))
+  => 1
+  ```
 
-  `(attempt (/ 1 0))
+  ```clojure
+  (attempt (/ 1 0))
   =>
   #error {
   :cause \"Divide by zero\"
@@ -170,7 +189,8 @@
    :message \"Divide by zero\"
    :data {}}]
   :trace
-  []} `"
+  []}
+  ```"
      [& body]
      `(catching (do ~@body) e# (ensure-fail e#))))
 
@@ -181,13 +201,17 @@
   tests/bindings are [[ok?]], else return `fail` with attached var & failing
   expresions
 
-  `(when-ok (/ 1 1) :ok)
-  => :ok`
+  ```clojure
+  (when-ok (/ 1 1) :ok)
+  => :ok
+  ```
 
-  `(when-ok nil :ok)
-  => :ok`
+  ```clojure(when-ok nil :ok)
+  => :ok
+  ```
 
-  `(when-ok (/ 1 0) :ok
+  ```clojure
+  (when-ok (/ 1 0) :ok
   =>
   #error {
   :cause \"Divide by zero\"
@@ -197,9 +221,11 @@
    :message \"Divide by zero\"
    :data {:binding test, :expr (/ 1 0)}}]
   :trace
-  []}`
+  []}
+  ```
 
-  `(when-ok [x (/ 1 0)] :ok)
+  ```clojure
+  (when-ok [x (/ 1 0)] :ok)
   =>
   #error {
   :cause \"Divide by zero\"
@@ -209,7 +235,8 @@
    :message \"Divide by zero\"
    :data {:binding x, :expr (/ 1 0)}}]
   :trace
-  []}`
+  []}
+  ```
   "
      {:style/indent 1}
      ([test-or-bindings & body]
@@ -230,15 +257,20 @@
      "Like `core/if-let` but can bind multiple values. execute `then` if all tests
   are `ok?`
 
-  `(if-ok (/ 1 1) :ok :err)
-  => :ok`
+  ```clojure
+  (if-ok (/ 1 1) :ok :err)
+  => :ok
+  ```
 
-  `(if-ok (/ 1 1) :ok :err)
-  => :err`
+  ```clojure
+  (if-ok (/ 1 1) :ok :err)
+  => :err
+  ```
 
-  `(if-ok nil :ok :err)
-  => :ok`
-  "
+  ```clojure
+  (if-ok nil :ok :err)
+  => :ok
+  ```"
      {:style/indent 1}
      ([test-or-bindings then     ] `(when-ok ~test-or-bindings ~then))
      ([test-or-bindings then else]
@@ -257,10 +289,13 @@
 (defn call
   "[[attempt]] to call function `f` on value `x`
 
-  `(call 1 inc)
-  => 2`
+  ```clojure
+  (call 1 inc)
+  => 2
+  ```
 
-  `(call \"1\" inc)
+  ```clojure
+  (call \"1\" inc)
   =>
   #error {
   :cause \"class java.lang.String cannot be cast to class java.lang.Number ...\"
@@ -270,7 +305,8 @@
    :message \"class java.lang.String cannot be cast to class java.lang.Number ... \"
    :data {}}]
   :trace
-  []}`
+  []}
+  ````
   "
   [x f]
   (attempt (f x)))
@@ -279,10 +315,11 @@
   "[[attempt]] to call function `f` on value `x` if `x` is [[ok?]] and is not
   `reduced`
 
-  `(-> {:name \"Ivan\" :age 17}
+  ```clojure
+  (-> {:name \"Ivan\" :age 17}
       (then #(update % :age inc)))
-  => {:name \"Ivan\", :age 18}`
-  "
+  => {:name \"Ivan\", :age 18}
+  ```"
   [x f]
   (if (and (not (reduced? x)) (ok? x)) (attempt (f x)) x))
 
@@ -290,23 +327,26 @@
   "[[attempt]] to call function `f` on value `x` if `x` is [[ok?]], not `reduced`
   and meets [[isa?]] condition
 
-  `(-> {:name \"Ivan\" :age 17}
+  ```clojure
+  (-> {:name \"Ivan\" :age 17}
       (then-if (comp (partial <= 18) :age) #(assoc % :adult true))
       (then-if (comp (partial > 18) :age) #(assoc % :adult false)))
    => {:name \"Ivan\", :age 17, :adult false}
-  `"
+  ```"
   [x pred f]
   (if (and (not (reduced? x)) (ok? x) (isa? x pred)) (attempt (f x)) x))
 
 (defn catch
   "[[attempt]] to call function `f` on value `x` if `x` is [[fail?]]
 
-  `(-> {:name \"Ivan\" :age 17}
+  ```clojure
+  (-> {:name \"Ivan\" :age 17}
       (then-if (comp (partial <= 18) :age) #(assoc % :adult true))
       (then-if (comp (partial > 18) :age) #(assoc % :adult false))
       (fail-if (complement (comp :adult)) \"user is underage\" #(find % :age))
       (catch-if (constantly :err)))
-  => :err`"
+  => :err
+  ```"
   [x f]
   (if (fail? x) (attempt (f x)) x))
 
@@ -314,12 +354,14 @@
   "[[attempt]] to call function `f` on value `x` if `x` is [[fail?]], not
   `reduced` and meets [[isa?]] condition
 
-  `(-> {:name \"Ivan\" :age 17}
+  ```clojure
+  (-> {:name \"Ivan\" :age 17}
       (then-if (comp (partial <= 18) :age) #(assoc % :adult true))
       (then-if (comp (partial > 18) :age) #(assoc % :adult false))
       (fail-if (complement (comp :adult)) \"user is underage\" #(find % :age))
       (catch-if (comp (partial > 18) :age) (constantly :err)))
-  => :err`"
+  => :err
+  ```"
   [x pred f]
   (if (and (fail? x) (isa? x pred)) (attempt (f x)) x))
 
@@ -328,7 +370,8 @@
   "return [[fail]] with optional `msg` and `data` if `x` is [[ok?]] and
   meets [[isa?]] condition
 
-  `(-> {:name \"Ivan\" :age 17}
+  ```clojure
+  (-> {:name \"Ivan\" :age 17}
       (then-if (comp (partial <= 18) :age) #(assoc % :adult true))
       (then-if (comp (partial > 18) :age) #(assoc % :adult false))
       (fail-if (complement (comp :adult)) \"user is underage\" (juxt (constantly :user) identity)))
@@ -342,7 +385,7 @@
    :data {:user {:name \"Ivan\", :age 17, :adult false}}}]
   :trace
   []}
-  `"
+  ```"
   ([x pred]
    (if (and (ok? x) (isa? (unreduced x) pred)) (fail) x))
   ([x pred msg]
