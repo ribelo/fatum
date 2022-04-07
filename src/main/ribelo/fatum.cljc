@@ -1,7 +1,7 @@
 (ns ribelo.fatum
-  (:refer-clojure :exclude [-> ->> isa?])
+  (:refer-clojure :exclude [-> ->> isa? and or every? some])
   #?(:cljs
-     (:require-macros [ribelo.fatum :refer [catching catch-errors attempt -> ->> when-ok if-ok]]))
+     (:require-macros [ribelo.fatum :refer [catching catch-errors attempt -> ->> when-ok if-ok and or]]))
   (:require
    #?(:clj  [clojure.core :as core]
       :cljs [cljs.core :as core]))
@@ -33,7 +33,7 @@
      (-contains-key? [this k] (-contains-key? (.-data this) k))
      (-assoc [this k v] (Fail. (.-message this) (-assoc (.-data this) k v)))
      IEquiv
-     (-equiv [this o] (and (instance? js/Error o)
+     (-equiv [this o] (core/and (instance? js/Error o)
                            (= (.-message this)
                               (.-message o))
                            (= (.-data this)
@@ -73,7 +73,7 @@
 (defn ensure-fail
   "ensure that `Exception` `err` is [[Fail]]"
   [x]
-  (if (and (fail? x) #?(:clj (instance? java.lang.Exception x) :cljs (instance? js/Error x)))
+  (if (core/and (fail? x) #?(:clj (instance? java.lang.Exception x) :cljs (instance? js/Error x)))
     (fail (ex-message x) (ex-data x))
     x))
 
@@ -91,7 +91,7 @@
 (defn -match-map?
   "chech if `x` has every `kv` from `m`"
   [x m]
-  (when (or (map? x) (exception-info? x))
+  (when (core/or (map? x) (exception-info? x))
     (reduce-kv
      (fn [_ k v]
        (if (= v (get x k))
@@ -132,7 +132,7 @@
        (keyword? pred)
        (true? (get x pred))
        (fn? pred)
-       (or (instance? pred x) (pred x))
+       (core/or (instance? pred x) (pred x))
        (map? pred)
        (-match-map? x pred))))
 
@@ -238,7 +238,6 @@
   []}
   ```
   "
-     {:style/indent 1}
      ([test-or-bindings & body]
       (if (vector? test-or-bindings)
         (let [s (seq test-or-bindings)]
@@ -248,7 +247,7 @@
                      ~b1 b2#]
                  (if (ok? b2#)
                    (when-ok ~(vec bnext) ~@body)
-                   (fail (ex-message b2#) {:binding '~b1 :expr '~b2}))))
+                   (fail (ex-message b2#) (merge (ex-data b2#) {::binding '~b1 ::expr '~b2})))))
             `(do ~@body)))
         `(when-ok [~'test ~test-or-bindings] ~@body)))))
 
@@ -321,7 +320,7 @@
   => {:name \"Ivan\", :age 18}
   ```"
   [x f]
-  (if (and (not (reduced? x)) (ok? x)) (attempt (f x)) x))
+  (if (core/and (not (reduced? x)) (ok? x)) (attempt (f x)) x))
 
 (defn then-if
   "[[attempt]] to call function `f` on value `x` if `x` is [[ok?]], not `reduced`
@@ -334,7 +333,7 @@
    => {:name \"Ivan\", :age 17, :adult false}
   ```"
   [x pred f]
-  (if (and (not (reduced? x)) (ok? x) (isa? x pred)) (attempt (f x)) x))
+  (if (core/and (not (reduced? x)) (ok? x) (isa? x pred)) (attempt (f x)) x))
 
 (defn catch
   "[[attempt]] to call function `f` on value `x` if `x` is [[fail?]]
@@ -363,7 +362,7 @@
   => :err
   ```"
   [x pred f]
-  (if (and (fail? x) (isa? x pred)) (attempt (f x)) x))
+  (if (core/and (fail? x) (isa? x pred)) (attempt (f x)) x))
 
 
 (defn fail-if
@@ -387,11 +386,11 @@
   []}
   ```"
   ([x pred]
-   (if (and (ok? x) (isa? (unreduced x) pred)) (fail) x))
+   (if (core/and (ok? x) (isa? (unreduced x) pred)) (fail) x))
   ([x pred msg]
-   (if (and (ok? x) (isa? (unreduced x) pred)) (fail msg) x))
+   (if (core/and (ok? x) (isa? (unreduced x) pred)) (fail msg) x))
   ([x pred msg data-or-fn]
-   (if (and (ok? x) (isa? (unreduced x) pred))
+   (if (core/and (ok? x) (isa? (unreduced x) pred))
      (if (fn? data-or-fn)
        (fail msg (data-or-fn x))
        (fail msg data-or-fn))
@@ -431,6 +430,34 @@
   meets [[isa?]] condition. return `x` unchanged. used for side effects"
   ([x pred f]
    (if (isa? (unreduced x) pred) (do (f (unreduced x)) x) x)))
+
+(defn every?
+  [pred xs]
+  (core/or
+   (reduce (fn [_ x] (if (pred x) true (reduced false))) true xs)
+   (fail "not every?" {:pred pred :xs xs})))
+
+(defn some
+  [pred xs]
+  (core/or
+   (reduce (fn [_ x] (if (pred x) (reduced true) false)) false xs)
+   (fail "not some" {:pred pred :xs xs})))
+
+#?(:clj
+   (defmacro and
+     ([] true)
+     ([x] (when-ok x x))
+     ([x & next]
+      `(let [and# ~x]
+         (if (ok? and#) (and ~@next) and#)))))
+
+#?(:clj
+   (defmacro or
+     ([] true)
+     ([x] (when-ok x x))
+     ([x & next]
+      `(let [or# ~x]
+         (if (ok? or#) or# (or ~@next))))))
 
 #?(:clj
    (defmacro ->
