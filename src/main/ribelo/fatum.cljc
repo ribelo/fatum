@@ -198,7 +198,7 @@
    (defmacro when-ok
      "Like `clojure.core/when` however if first arg is binding vector behave like
   `clojure.core/when-let`, but can bind multiple values. check if all
-  tests/bindings are [[ok?]], else return `fail` with attached var & failing
+  tests/bindings are [[ok?]], else return [[Fail]] with attached var & failing
   expresions
 
   ```clojure
@@ -248,6 +248,63 @@
                  (if (ok? b2#)
                    (when-ok ~(vec bnext) ~@body)
                    (fail (ex-message b2#) (merge (ex-data b2#) {::binding '~b1 ::expr '~b2})))))
+            `(do ~@body)))
+        `(when-ok [~'test ~test-or-bindings] ~@body)))))
+
+#?(:clj
+   (defmacro when-ok!
+     "Like `clojure.core/when` however if first arg is binding vector behave like
+  `clojure.core/when-let`, but can bind multiple values. check if all
+  tests/bindings are [[ok?]], else throw [[Fail]] with attached var & failing
+  expresions
+
+  ```clojure
+  (when-ok (/ 1 1) :ok)
+  => :ok
+  ```
+
+  ```clojure(when-ok nil :ok)
+  => :ok
+  ```
+
+  ```clojure
+  (when-ok (/ 1 0) :ok
+  =>
+  #error {
+  :cause \"Divide by zero\"
+  :data {:binding test, :expr (/ 1 0)}
+  :via
+  [{:type ribelo.fatum.Fail
+   :message \"Divide by zero\"
+   :data {:binding test, :expr (/ 1 0)}}]
+  :trace
+  []}
+  ```
+
+  ```clojure
+  (when-ok [x (/ 1 0)] :ok)
+  =>
+  #error {
+  :cause \"Divide by zero\"
+  :data {:binding x, :expr (/ 1 0)}
+  :via
+  [{:type ribelo.fatum.Fail
+   :message \"Divide by zero\"
+   :data {:binding x, :expr (/ 1 0)}}]
+  :trace
+  []}
+  ```
+  "
+     ([test-or-bindings & body]
+      (if (vector? test-or-bindings)
+        (let [s (seq test-or-bindings)]
+          (if s                         ; (when-let [] true) => true
+            (let [[b1 b2 & bnext] s]
+              `(let [b2# (attempt ~b2)
+                     ~b1 b2#]
+                 (if (ok? b2#)
+                   (when-ok ~(vec bnext) ~@body)
+                   (fail! (ex-message b2#) (merge (ex-data b2#) {::binding '~b1 ::expr '~b2})))))
             `(do ~@body)))
         `(when-ok [~'test ~test-or-bindings] ~@body)))))
 
