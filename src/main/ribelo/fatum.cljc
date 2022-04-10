@@ -167,7 +167,7 @@
   (catch-errors (/ 1 0)) => [nil java.lang.ArithmeticException]
   ```"
      [& body]
-     `(-catching [(do ~@body) nil] e# [nil e#])))
+     `(catching [(do ~@body) nil] e# [nil (ensure-fail e#)])))
 
 #?(:clj
    (defmacro attempt
