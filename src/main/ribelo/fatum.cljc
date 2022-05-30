@@ -64,23 +64,59 @@
 
 (defn fail?
   "check if `x` is instance of `Exception` in clj or `js/Error` in cljs"
-  [x]
-  #?(:clj
-     (instance? java.lang.Exception x)
-     :cljs
-     (instance? js/Error x)))
+  ([x]
+   #?(:clj
+      (instance? java.lang.Exception x)
+      :cljs
+      (instance? js/Error x)))
+  ([x & more]
+   (core/or
+     (fail? x)
+     (reduce
+       (fn [_ y] (if (fail? y) (reduced true) false))
+       false
+       more))))
+
+(defn fail?!
+  "`throw` `x` if `x` meets [[fail?]] else returns x"
+  ([x]
+   (if (fail? x) (throw x) x))
+  ([x & more]
+   (fail?! x)
+   (reduce
+     (fn [_ y] (fail?! y))
+     false
+     more)))
 
 (defn ensure-fail
   "ensure that `Exception` `err` is [[Fail]]"
   [x]
-  (if (core/and (fail? x) #?(:clj (instance? java.lang.Exception x) :cljs (instance? js/Error x)))
-    (fail (ex-message x) (ex-data x))
-    x))
+  (if #?(:clj (instance? java.lang.Exception x) :cljs (instance? js/Error x))
+    (if (instance? Fail x) x (fail (ex-message x) (ex-data x)))
+    (fail! "x is not a exception" {:x x :type (type x)})))
 
 (defn ok?
   "check if `x` is not [[Fail]]"
-  [x]
-  (not (fail? x)))
+  ([x]
+   (not (fail? x)))
+  ([x & more]
+   (core/and
+     (ok? x)
+     (reduce
+       (fn [_ y] (if-not (ok? y) (reduced false) true))
+       true
+       more))))
+
+(defn ok?!
+  "`throw` `x` if `x` meets [[fail?]] else returns x"
+  ([x]
+   (if (ok? x) x (throw x)))
+  ([x & more]
+   (ok?! x)
+   (reduce
+     (fn [_ y] (ok?! y))
+     true
+     more)))
 
 (defn exception-info?
   "check if `x` is `ExceptionInfo`"
