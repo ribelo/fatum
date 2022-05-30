@@ -192,20 +192,6 @@
      (try ~expr (catch :default  ~err ~catch) (finally ~finally)))))
 
 #?(:clj
-   (defmacro catch-errors
-     "like [[catching]], but returns a vector where the first element is the result of
-  executing the `body` and the second is an `Exception`
-
-  ```clojure
-  (catch-errors (/ 1 1)) => [1 nil]
-  ```
-  ```clojure
-  (catch-errors (/ 1 0)) => [nil java.lang.ArithmeticException]
-  ```"
-     [& body]
-     `(catching [(do ~@body) nil] e# [nil (ensure-fail e#)])))
-
-#?(:clj
    (defmacro attempt
      "like [[catching]], but takes `body` as argument
 
@@ -229,6 +215,20 @@
   ```"
      [& body]
      `(catching (do ~@body) e# (ensure-fail e#))))
+
+#?(:clj
+   (defmacro catch-errors
+     "like [[catching]], but returns a vector where the first element is the result of
+  executing the `body` and the second is an `Exception`
+
+  ```clojure
+  (catch-errors (/ 1 1)) => [1 nil]
+  ```
+  ```clojure
+  (catch-errors (/ 1 0)) => [nil java.lang.ArithmeticException]
+  ```"
+     [& body]
+     `(let [x# (attempt ~@body)] (if (ok? x#) [x# nil] [nil x#]))))
 
 #?(:clj
    (defmacro when-ok
@@ -363,7 +363,7 @@
   (if-ok nil :ok :err)
   => :ok
   ```"
-     {:style/indent 1}
+     ;; {:style/indent 0}
      ([test-or-bindings then     ] `(when-ok ~test-or-bindings ~then))
      ([test-or-bindings then else]
       (if (vector? test-or-bindings)
