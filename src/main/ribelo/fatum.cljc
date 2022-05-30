@@ -507,11 +507,6 @@
   [x f]
   (attempt (f (unreduced x))) (unreduced x))
 
-(defn maybe-throw
-  "`throw` `x` if `x` meets [[fail?]]"
-  [x]
-  (when (fail? x) (throw x)))
-
 (defn thru
   "[[attempt]] to call function `f` on `unreduced` value of `x`. return `x`
   unchanged. used for side effects"
